@@ -1,7 +1,7 @@
 ######Code for Cardoso et al. (2024)
 ######Calculating functional diversity metrics using neighbor-joining trees
-######code authors: Cardoso, Guillerme, Mammola & Matthews
-###### Software: R (v. R 4.1.0) and R studio (v. 1.4.1103)
+######code authors: Cardoso, Guillerme, Mammola, Matthews, Carvalho
+######Software: R (v. R 4.1.0) and R studio (v. 1.4.1103)
 
 library(ape)
 library(BAT)
@@ -27,28 +27,6 @@ contribution(comm, tree, F, relative = FALSE)
 dispersion(comm, tree, relative = FALSE)
 evenness(comm, tree)
 beta(comm, tree)
-
-######analyses for the NJ tree in Fig 3
-kiwi <- read.csv("kiwi.csv")
-kiwi = standard(log(kiwi))
-comm1 = rep(1, 105)
-comm2 = comm1
-comm2[7:11] = 0
-kiwi = prcomp(kiwi, retx = T)$x[,1:5]
-summary(kiwi)
-
-tree = tree.build(kiwi, distance = "euclidean")
-plot(tree, type = "fan", show.tip.label = FALSE, edge.width = 4)
-rich = alpha(comm = rbind(comm1, comm2), tree)
-differ = (rich[1]-rich[2])/rich[1]
-differ
-
-######analyses for the equivalent tree built with UPGMA
-tree = tree.build(kiwi, func = "upgma", distance = "euclidean")
-plot(tree)
-rich = alpha(comm = rbind(comm1, comm2), tree)
-differ = (rich[1]-rich[2])/rich[1]
-differ
 
 # R code to generate the simulation and explore correlations
 
@@ -392,16 +370,17 @@ datJR2 <- apply(datJR, 2, function(x) scale(log(x))) %>%
   as.data.frame()
 rownames(datJR2) <- dat4$species
 
-#Generate the PCA
-trai.pca <- prcomp(datJR2)
-TRAITS <- trai.pca$x[,1:5]#first 5 axes
-TRAITS_ALL <- trai.pca$x#all axes
+#Generate the PCoA
+ee_dist <- dist(datJR2)
+trai.pcoa <- ape::pcoa(ee_dist)
+TRAITS <- trai.pcoa$vectors[,1:5]#first 5 axes
+TRAITS_ALL <- trai.pcoa$vectors#all axes
 
 ####################################################
 ##calculate distance and build the two dendrograms
 #####################################################
-eu_dist <- dist(TRAITS)#five PCA axes
-eu_dist_all <- dist(TRAITS_ALL)#all PCA axes
+eu_dist <- dist(TRAITS)#five PCoA axes
+eu_dist_all <- dist(TRAITS_ALL)#all PCoA axes
 
 #upgma
 up_tree <- tree.build(TRAITS, distance = "euclidean", 
@@ -456,15 +435,17 @@ hull_alpha <- hull.alpha(hull)
 ###Tree and hyperspace Quality##########
 ##################################################
 
-##tree quality (using the 5 PCA axes distance matrix)
+##tree quality (using the 5 PCoA axes distance matrix)
 tree.quality(eu_dist, up_tree)#upgma
 tree.quality(eu_dist, nj_tree)#nj
+#Note that you get the same results if you use the
+#full set of PCoA axes (eu_dist_all)
 
 ##hyper quality (from 1 through to 8 axes)
-#use the all PCA axes distance matrix
+#use the all PCoA axes distance matrix
 res_v <- vector(length = 8)
 for (i in 1:8){
-  TRAITS_v <- trai.pca$x[,1:i, drop = FALSE]
+  TRAITS_v <- trai.pcoa$x[,1:i, drop = FALSE]
   hyper_v <- hyper.build(TRAITS_v, distance = "euclidean", axes = 0)
   res_v[i] <- hyper.quality(eu_dist_all, hyper_v)
 }
