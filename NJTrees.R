@@ -345,6 +345,1321 @@ ggsave(plot = cowplot::plot_grid(
   ggmatrix_gtable(plot4),
   nrow = 2, ncol = 2, labels = c("A", "B", "C", "D")), filename = "Figure_2.pdf",width = 38, height = 32, units = "cm")
 
+
+########################### Quality of the functional space (Appendix S1) ##################################################################
+
+
+########################### Preliminary notes #############################################
+## Note: Data - 10 replicates of 2 Processes (BM or OU) x n_traits (1, 2, 4 and 8 traits)
+## 10 communities (10, 20, ..., 100 species) for each combination
+
+## Note: Quality - A tree was rebuilt for each community, using the traits of species present in the community.
+# This tree (NOT the initial tree with all the species) was used to evaluate the quality
+# of the functional space
+
+## BAT quality functions were adapted to accept several communities at once.
+# tree.quality.com
+# pcoa.quality.com
+
+########################### Tree quality with community data function #####################
+tree.quality.com <- function (comm, traits, tree.builder = "nj") {
+  comm <- comm # community data
+  traits <- traits # trait data
+  tree.builder <- tree.builder # either nj or upgma
+  
+  ## cycle through all communities
+  res <- NULL
+  for (i in 1: nrow(comm)) {
+    present <- which (comm[i,] > 0)
+    tr_present <- as.data.frame(traits [present,])
+    distance <- gower (tr_present)
+    tree <- tree.build (tr_present, distance = "gower", func = paste(tree.builder))
+    quality <- msd(distance, as.dist(cophenetic (tree)))
+    res <- c(res, quality)
+    
+  }
+  res
+  
+}
+
+# tree.quality.com(comm, run1_traits_extant, "upgma")
+
+########################### PCOA quality function #########################
+pcoa.quality.com <- function (comm, traits, k = 2) {
+  comm <- comm # community data
+  traits <- traits # trait data
+  k = k # number of axes
+  
+  ## cycle through all communities
+  res = NULL
+  for (i in 1: nrow(comm)) {
+    present <- which (comm[i,] > 0)
+    tr_present <- as.data.frame(traits [present,])
+    distance <- gower (tr_present)
+    pcoa <- cmdscale(distance, k= k , add = T)
+    quality <- msd(distance, dist(pcoa$points))
+    res <- c(res, quality)
+    
+  }
+  res
+  
+}
+
+# pcoa.quality.com(comm, run1_traits_extant, 2)
+
+########################### libraries ######################
+# Libraries
+library(ape)
+library(dads)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(forcats)
+library(hrbrthemes)
+library(viridis)
+library(BAT)
+
+########################### Data import ##################################
+# to read
+tree_traits_OU <- readRDS("C:/path/tree_traits_OU.rds")
+tree_traits_BM <- readRDS("C:/path/tree_traits_BM.rds")
+random_communities <- readRDS("C:/path/random_communities.rds")
+
+# to read
+Sp_Traits_BM <- readRDS("tree_traits_BM.rds")
+Sp_Traits_OU <- readRDS("tree_traits_OU.rds")
+
+
+
+########################### Results :: NJ vs UPGMA #####################################################
+########################### BM process :: 1 trait  #######################
+# a list of 10 replicates of 1 trait
+trait1 <- Sp_Traits_BM[[1]] 
+
+# 10 random communities
+comm1 <- random_communities[[1]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa <- NULL
+for (i in 1:length(trait1)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait1[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  pcoa <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 1)
+  res_pcoa <- c(res_pcoa, pcoa)
+  
+}
+
+resBM_1trait <- data.frame (process = rep("BM", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa", 100)), n_traits = rep(1, 300), n_species = rep(seq(10,100, 10), 30), quality = c(res_nj, res_upgma, res_pcoa))
+
+########################### BM process :: 2 traits #######################
+# a list of 10 replicates of 2 traits
+trait2 <- Sp_Traits_BM[[2]] 
+
+# 10 random communities
+comm1 <- random_communities[[2]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa <- NULL
+for (i in 1:length(trait2)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait2[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  pcoa <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 1)
+  res_pcoa <- c(res_pcoa, pcoa)
+  
+  
+}
+
+resBM_2trait <- data.frame (process = rep("BM", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa-1axis", 100)), n_traits = rep(2, 300), n_species = rep(seq(10,100, 10), 30), quality = c(res_nj, res_upgma, res_pcoa))
+
+
+########################### BM process :: 4 traits #######################
+# a list of 10 replicates of 4 trait
+trait4 <- Sp_Traits_BM[[3]] 
+
+# 10 random communities
+comm1 <- random_communities[[3]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa <- NULL
+for (i in 1:length(trait4)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait4[[i]]
+  
+  ## drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  pcoa <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 2)
+  res_pcoa <- c(res_pcoa, pcoa)
+  
+  
+}
+
+resBM_4trait <- data.frame (process = rep("BM", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa-2 axes", 100)), n_traits = rep(4, 300), n_species = rep(seq(10,100, 10), 30), quality = c(res_nj, res_upgma, res_pcoa))
+
+########################### BM process :: 8 traits #######################
+# a list of 10 replicates of 8 trait
+trait8 <- Sp_Traits_BM[[4]] 
+
+# 10 random communities
+comm1 <- random_communities[[4]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa2 <- NULL
+res_pcoa4 <- NULL
+for (i in 1:length(trait8)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait8[[i]]
+  
+  ## drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  ## PCOA with 2 axes
+  pcoa2 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 2)
+  res_pcoa2 <- c(res_pcoa2, pcoa2)
+  
+  ## PCOA with 4 axes
+  pcoa4 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 4)
+  res_pcoa4 <- c(res_pcoa4, pcoa4)
+  
+  
+}
+
+resBM_8trait <- data.frame (process = rep("BM", 400), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa-2 axes", 100), rep("pcoa-4 axes", 100)), n_traits = rep(8, 400), n_species = rep(seq(10,100, 10), 40), quality = c(res_nj, res_upgma, res_pcoa2, res_pcoa4))
+
+
+########################### OU process :: 1 trait  #######################
+# a list of 10 replicates of 1 trait
+trait1 <- Sp_Traits_OU[[1]] 
+
+# 10 random communities
+comm1 <- random_communities[[1]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa <- NULL
+for (i in 1:length(trait1)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait1[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  pcoa <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 1)
+  res_pcoa <- c(res_pcoa, pcoa)
+  
+  
+}
+
+resOU_1trait = data.frame (process = rep("OU", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa", 100)), n_traits = rep(1, 300), n_species = rep(seq(10,100, 10), 30), quality = c(res_nj, res_upgma, res_pcoa))
+
+########################### OU process :: 2 traits #######################
+# a list of 10 replicates of 2 traits
+trait2 <- Sp_Traits_OU[[2]] 
+
+# 10 random communities
+comm1 <- random_communities[[2]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa <- NULL
+for (i in 1:length(trait2)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait2[[i]]
+  
+  ## drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  pcoa <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 1)
+  res_pcoa <- c(res_pcoa, pcoa)
+  
+  
+}
+
+resOU_2trait <- data.frame (process = rep("OU", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa", 100)), n_traits = rep(2, 300), n_species = rep(seq(10,100, 10), 30), quality = c(res_nj, res_upgma, res_pcoa))
+
+
+########################### OU process :: 4 traits #######################
+# a list of 10 replicates of 4 traits
+trait4 <- Sp_Traits_OU[[3]] 
+
+# 10 random communities
+comm1 <- random_communities[[3]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa <- NULL
+for (i in 1:length(trait4)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait4[[i]]
+  
+  ## drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  pcoa <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 2)
+  res_pcoa <- c(res_pcoa, pcoa)
+  
+  
+}
+
+resOU_4trait <- data.frame (process = rep("OU", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa-2 axes", 100)), n_traits = rep(4, 300), n_species = rep(seq(10,100, 10), 30), quality = c(res_nj, res_upgma, res_pcoa))
+
+
+########################### OU process :: 8 traits #######################
+# a list of 10 replicates of 8 traits
+trait8 <- Sp_Traits_OU[[4]] 
+
+# 10 random communities
+comm1 <- random_communities[[4]]
+
+res_nj <- NULL
+res_upgma <- NULL
+res_pcoa2 <- NULL
+res_pcoa4 <- NULL
+for (i in 1:length(trait8)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait8[[i]]
+  
+  ## Nota: adicionei isto pra dar as 100 espécies (está no script Simulation V5)
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- tree.quality.com (comm = comm1, traits = traits_j, tree.builder = "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  ## PCOA with 2 axes
+  pcoa2 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 2)
+  res_pcoa2 <- c(res_pcoa2, pcoa2)
+  
+  ## PCOA with 4 axes
+  pcoa4 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 4)
+  res_pcoa4 <- c(res_pcoa4, pcoa4)
+  
+  
+}
+
+resOU_8trait <- data.frame (process = rep("OU", 400), method = c(rep("nj", 100), rep("upgma", 100), rep("pcoa-2 axes", 100), rep("pcoa-4 axes", 100)), n_traits = rep(8, 400), n_species = rep(seq(10,100, 10), 40), quality = c(res_nj, res_upgma, res_pcoa2, res_pcoa4))
+
+
+########################### Plots NJ vs UPGMA (Appendix S1: Fig. S1.1) ############################################
+## OU process
+data <- rbind (subset (resOU_1trait, method %in% c("nj", "upgma")), 
+               subset (resOU_2trait, method %in% c("nj", "upgma")),
+               subset (resOU_4trait, method %in% c("nj", "upgma")), 
+               subset (resOU_8trait, method %in% c("nj", "upgma"))
+)
+
+
+# Grouped
+png ("All_OU2.png", width = 900, height = 600)
+
+
+data %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=quality, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent") +
+  facet_wrap(~ n_traits, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("OU process") +
+  xlab("Number of species") +
+  ylab("Quality of the functional space") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,1)
+
+dev.off()
+
+
+## BM process
+data <- rbind (subset (resBM_1trait, method %in% c("nj", "upgma")), 
+               subset (resBM_2trait, method %in% c("nj", "upgma")),
+               subset (resBM_4trait, method %in% c("nj", "upgma")), 
+               subset (resBM_8trait, method %in% c("nj", "upgma"))
+)
+
+# Grouped
+png ("All_BM2.png", width = 900, height = 600)
+
+data %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=quality, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent") +
+  facet_wrap(~ n_traits, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("BM process") +
+  xlab("Number of species") +
+  ylab("Quality of the functional space") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,1)
+
+dev.off()
+
+
+
+
+
+########################### Results :: PCOA 2 to 8 axes (8 traits) ######################################
+#### Quality results for a sequence of 2 to 8 axes of a PCOA for datasets with 8 traits
+
+
+########################### BM process :: 8 traits #####################################
+# a list of 10 replicates of 8 trait
+trait8 <- Sp_Traits_BM[[4]] 
+
+# 10 random communities
+comm1 <- random_communities[[4]]
+
+res_pcoa2 <- NULL
+res_pcoa3 <- NULL
+res_pcoa4 <- NULL
+res_pcoa5 <- NULL
+res_pcoa6 <- NULL
+res_pcoa7 <- NULL
+res_pcoa8 <- NULL
+for (i in 1:length(trait8)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait8[[i]]
+  
+  ## drop fosil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  
+  ## PCOA with 2 axes
+  pcoa2 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 2)
+  res_pcoa2 <- c(res_pcoa2, pcoa2)
+  
+  ## PCOA with 3 axes
+  pcoa3 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 3)
+  res_pcoa3 <- c(res_pcoa3, pcoa3)
+  
+  ## PCOA with 4 axes
+  pcoa4 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 4)
+  res_pcoa4 <- c(res_pcoa4, pcoa4)
+  
+  ## PCOA with 5 axes
+  pcoa5 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 5)
+  res_pcoa5 <- c(res_pcoa5, pcoa5)
+  
+  ## PCOA with 6 axes
+  pcoa6 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 6)
+  res_pcoa6 <- c(res_pcoa6, pcoa6)
+  
+  ## PCOA with 7 axes
+  pcoa7 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 7)
+  res_pcoa7 <- c(res_pcoa7, pcoa7)
+  
+  ## PCOA with 8 axes
+  pcoa8 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 8)
+  res_pcoa8 <- c(res_pcoa8, pcoa8)
+  
+  
+}
+
+resBM_8trait_PCOA <- data.frame (process = rep("BM", 700), method = c(rep("pcoa-2 axes", 100), rep("pcoa-3 axes", 100), rep("pcoa-4 axes", 100), rep("pcoa-5 axes", 100), rep("pcoa-6 axes", 100), rep("pcoa-7 axes", 100), rep("pcoa-8 axes", 100)), n_traits = rep(8, 700), n_species = rep(seq(10, 100, 10), 70), quality = c(res_pcoa2, res_pcoa3, res_pcoa4, res_pcoa5, res_pcoa6, res_pcoa6, res_pcoa8))
+
+data <- resBM_8trait_PCOA
+
+# Grouped
+png ("Plot_8T_BM_PCOA.png", width = 900, height = 1200)
+
+data %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=quality, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  # facet_grid(~fct_relevel(method, "pcoa-2 axes", "pcoa-3 axes", "pcoa-4 axes", "pcoa-5 axes", "pcoa-6 axes", "pcoa-7 axes", "pcoa-8 axes")) +
+  facet_wrap(~fct_relevel(method, "pcoa-2 axes", "pcoa-3 axes", "pcoa-4 axes", "pcoa-5 axes", "pcoa-6 axes", "pcoa-7 axes", "pcoa-8 axes"), scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("BM process: 8 traits") +
+  xlab("Number of species") +
+  ylab("Quality of the functional space") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,1) 
+
+
+dev.off()
+
+########################### OU process :: 8 traits #############################
+# a list of 10 replicates of 8 trait
+trait8 <- Sp_Traits_OU[[4]] 
+
+# 10 random communities
+comm1 <- random_communities[[4]]
+
+res_pcoa2 <- NULL
+res_pcoa3 <- NULL
+res_pcoa4 <- NULL
+res_pcoa5 <- NULL
+res_pcoa6 <- NULL
+res_pcoa7 <- NULL
+res_pcoa8 <- NULL
+for (i in 1:length(trait8)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait8[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  
+  
+  ## PCOA with 2 axes
+  pcoa2 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 2)
+  res_pcoa2 <- c(res_pcoa2, pcoa2)
+  
+  ## PCOA with 3 axes
+  pcoa3 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 3)
+  res_pcoa3 <- c(res_pcoa3, pcoa3)
+  
+  ## PCOA with 4 axes
+  pcoa4 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 4)
+  res_pcoa4 <- c(res_pcoa4, pcoa4)
+  
+  ## PCOA with 5 axes
+  pcoa5 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 5)
+  res_pcoa5 <- c(res_pcoa5, pcoa5)
+  
+  ## PCOA with 6 axes
+  pcoa6 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 6)
+  res_pcoa6 <- c(res_pcoa6, pcoa6)
+  
+  ## PCOA with 7 axes
+  pcoa7 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 7)
+  res_pcoa7 <- c(res_pcoa7, pcoa7)
+  
+  ## PCOA with 8 axes
+  pcoa8 <- pcoa.quality.com(comm = comm1, traits = traits_j, k = 8)
+  res_pcoa8 <- c(res_pcoa8, pcoa8)
+  
+  
+}
+
+resOU_8trait_PCOA <- data.frame (process = rep("OU", 700), method = c(rep("pcoa-2 axes", 100), rep("pcoa-3 axes", 100), rep("pcoa-4 axes", 100), rep("pcoa-5 axes", 100), rep("pcoa-6 axes", 100), rep("pcoa-7 axes", 100), rep("pcoa-8 axes", 100)), n_traits = rep(8, 700), n_species = rep(seq(10, 100, 10), 70), quality = c(res_pcoa2, res_pcoa3, res_pcoa4, res_pcoa5, res_pcoa6, res_pcoa6, res_pcoa8))
+
+data <- resOU_8trait_PCOA
+
+# Grouped
+png ("Plot_8T_OU_PCOA.png", width = 900, height = 1200)
+
+data %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=quality, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  # facet_grid(~fct_relevel(method, "pcoa-2 axes", "pcoa-3 axes", "pcoa-4 axes", "pcoa-5 axes", "pcoa-6 axes", "pcoa-7 axes", "pcoa-8 axes")) +
+  facet_wrap(~fct_relevel(method, "pcoa-2 axes", "pcoa-3 axes", "pcoa-4 axes", "pcoa-5 axes", "pcoa-6 axes", "pcoa-7 axes", "pcoa-8 axes"), scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("OU process: 8 traits") +
+  xlab("Number of species") +
+  ylab("Quality of the functional space") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,1) 
+
+
+dev.off()
+
+
+########################### Sensitivity to outliers (Appendix S2) #######################
+
+########################### Preliminary notes ##################
+# Note: Data - 10 replicates of 2 Processes (BM or OU) x n_traits (1, 2, 4 and 8 traits)
+## 10 communities (10, 20, ..., 100 species) for each combination
+
+# Outlier: species with maximum average distance to all other species 
+
+## Note: 
+# - A tree was built for each community and used to measure FD.
+# - The same tree was used to measure FD without the outlier
+# - % CHANGE = (FD_all - FD_w/outlier) / FD_all
+
+
+########################### Function to calculate % change in FD after removing outliers ####
+FD.outlier = function (comm, traits, method = "nj") {
+  comm = comm
+  traits = traits
+  method = method
+  
+  ## cycle through all communities
+  res = NULL
+  for (i in 1: nrow(comm)) {
+    present <- which (comm[i,] > 0)
+    tr_present <- as.data.frame(traits [present,])
+    
+    # distance matrix with all species
+    distance <- gower (tr_present)
+    
+    # Maximum value of the average distance from one species to all other
+    dd <- rowMeans(as.matrix(distance))
+    outl <- which (dd == max(dd)) ## outlier
+    
+    # method switch
+    method <- match.arg(method, c("nj","upgma", "hyper"))
+    
+    switch (method, nj = {
+      
+      ## all species
+      tree_all <- tree.build (tr_present, distance = "gower", func = "nj")
+      
+      # matrix with comm i (first row) and comm i without the outlier (second row)
+      mat <- matrix (1, nrow = 2, ncol=length(present))
+      mat[2, outl] <- 0 # set the outlier with a zero (absence)
+      
+      # FD
+      FD = alpha (mat, tree_all)
+      
+      ## sensitivity to outlier
+      sst <- (FD[1,]-FD[2,]) / FD[1,] * 100
+      names (sst) <- NULL
+      
+      
+    }, upgma = {
+      
+      ## all species
+      tree_all <- tree.build (tr_present, distance = "gower", func = "upgma")
+      
+      # matrix with comm i (first row) and comm i without the outlier (second row)
+      mat <- matrix (1, nrow = 2, ncol=length(present))
+      mat[2, outl] <- 0 # set the outlier with a zero (absence)
+      
+      # FD
+      FD = alpha (mat, tree_all)
+      
+      ## sensitivity to outlier
+      sst <- (FD[1,]-FD[2,]) / FD[1,] * 100
+      names (sst) <- NULL
+      
+    }, hyper = {
+      
+      # matrix with comm i (first row) and comm i without the outlier (second row)
+      mat <- matrix (1, nrow = 2, ncol=length(present))
+      mat[2, outl] <- 0 # set the outlier with a zero (absence)
+      rownames (mat) <- c("all", "out")
+      
+      # standardize traits into the range 0-1
+      # kernel.build is not doing the standardization
+      library(vegan)
+      trait_range <- decostand(tr_present, "range")
+      
+      hv <- kernel.build(comm = mat, trait = trait_range, method = "box", abun = F, cores = 10)
+      FD <- kernel.alpha(hv) ; names(hv) <- NULL 
+      
+      ## sensitivity to outlier
+      sst <- (FD[1]-FD[2]) / FD[1] * 100
+      names (sst) <- NULL
+      
+    })
+    
+    res <- c(res, sst)
+    
+  }
+  res
+  
+}
+
+# FD.outlier (comm1, traits_j, "nj")
+# FD.outlier (comm1, traits_j, "upgma")
+# FD.outlier (comm1, traits_j, "hyper")
+
+########################### libraries ######################
+# Libraries
+library(parallel)
+library(hypervolume)
+library(ape)
+library(dads)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(forcats)
+library(hrbrthemes)
+library(viridis)
+library(parallel)
+library(BAT)
+
+########################### Data import ##################################
+# to read
+tree_traits_OU <- readRDS("C:/path/tree_traits_OU.rds")
+tree_traits_BM <- readRDS("C:/path/tree_traits_BM.rds")
+random_communities <- readRDS("C:/path/random_communities.rds")
+
+
+# to read
+Sp_Traits_BM <- readRDS("tree_traits_BM.rds")
+Sp_Traits_OU <- readRDS("tree_traits_OU.rds")
+
+########################### BM process :: 1 trait  #######################
+# a list of 10 replicates of 1 trait
+trait1 <- Sp_Traits_BM[[1]] 
+
+# 10 random communities
+comm1 <- random_communities[[1]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+# res_hyper <- NULL
+for (i in 1:length(trait1)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait1[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- FD.outlier (comm1, traits_j, "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  # hyper <- FD.outlier (comm1, traits_j, "hyper") # Hypervolumes are not possible when nº of axes = 1 
+  # res_hyper <- c(res_hyper, hyper)
+  
+}
+
+# outBM_1trait <- data.frame (process = rep("BM", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(1, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+outBM_1trait <- data.frame (process = rep("BM", 200), method = c(rep("nj", 100), rep("upgma", 100)), n_traits = rep(1, 200), n_species = rep(seq(10,100, 10), 20), change = c(res_nj, res_upgma))
+
+
+data = outBM_1trait
+
+# Grouped
+png ("out_1T_BM.png", width = 600, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("BM process: 1 trait") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+########################### BM process :: 2 traits  #######################
+# a list of 10 replicates of 2 trait
+trait2 <- Sp_Traits_BM[[2]] 
+
+# 10 random communities
+comm1 <- random_communities[[2]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+res_hyper <- NULL
+for (i in 1:length(trait2)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait2[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- FD.outlier (comm1, traits_j, "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  hyper <- FD.outlier (comm1, traits_j, "hyper")
+  res_hyper <- c(res_hyper, hyper)
+  
+}
+
+outBM_2trait <- data.frame (process = rep("BM", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(2, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+
+data = outBM_2trait
+
+# Grouped
+png ("out_2T_BM.png", width = 900, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("BM process: 2 traits") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+########################### BM process :: 4 traits  #######################
+# a list of 10 replicates of 4 traits
+trait4 <- Sp_Traits_BM[[3]] 
+
+# 10 random communities
+comm1 <- random_communities[[3]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+res_hyper <- NULL
+for (i in 1:length(trait4)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait4[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- FD.outlier (comm1, traits_j, "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  hyper <- FD.outlier (comm1, traits_j, "hyper")
+  res_hyper <- c(res_hyper, hyper)
+  
+}
+
+outBM_4trait <- data.frame (process = rep("BM", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(4, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+
+data <- outBM_4trait
+
+# Grouped
+png ("out_4T_BM.png", width = 900, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("BM process: 4 traits") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+########################### BM process :: 8 traits  #######################
+# a list of 10 replicates of 8 traits
+trait8 <- Sp_Traits_BM[[4]] 
+
+# 10 random communities
+comm1 <- random_communities[[4]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+res_hyper <- NULL
+for (i in 1:length(trait8)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait8[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- FD.outlier (comm1, traits_j, "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  hyper <- FD.outlier (comm1, traits_j, "hyper")
+  res_hyper <- c(res_hyper, hyper)
+  
+}
+
+outBM_8trait <- data.frame (process = rep("BM", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(8, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+
+data <- outBM_8trait
+
+# Grouped
+png ("out_8T_BM.png", width = 900, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("BM process: 8 traits") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+########################### OU process :: 1 trait  #######################
+# a list of 10 replicates of 1 trait
+trait1 <- Sp_Traits_OU[[1]] 
+
+# 10 random communities
+comm1 <- random_communities[[1]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+# res_hyper <- NULL
+for (i in 1:length(trait1)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait1[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- FD.outlier (comm1, traits_j, "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  # hyper <- FD.outlier (comm1, traits_j, "hyper") # hypervolumes are not possible when nº of axes = 1
+  # res_hyper <- c(res_hyper, hyper)
+  
+}
+
+# outOU_1trait <- data.frame (process = rep("OU", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(1, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+outOU_1trait <- data.frame (process = rep("OU", 200), method = c(rep("nj", 100), rep("upgma", 100)), n_traits = rep(1, 200), n_species = rep(seq(10,100, 10), 20), change = c(res_nj, res_upgma))
+
+
+data <- outOU_1trait
+
+# Grouped
+png ("out_1T_OU.png", width = 600, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("OU process: 1 trait") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+########################### OU process :: 2 traits  #######################
+# a list of 10 replicates of 2 traits
+trait2 <- Sp_Traits_OU[[2]] 
+
+# 10 random communities
+comm1 <- random_communities[[2]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+res_hyper <- NULL
+for (i in 1:length(trait2)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait2[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj = FD.outlier (comm1, traits_j, "nj")
+  res_nj = c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  hyper <- FD.outlier (comm1, traits_j, "hyper")
+  res_hyper <- c(res_hyper, hyper)
+  
+}
+
+outOU_2trait <- data.frame (process = rep("OU", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(2, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+
+data <- outOU_2trait
+
+# Grouped
+png ("out_2T_OU.png", width = 900, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("OU process: 2 traits") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+########################### OU process :: 4 traits  #######################
+# a list of 10 replicates of 4 traits
+trait4 <- Sp_Traits_OU[[3]] 
+
+# 10 random communities
+comm1 <- random_communities[[3]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+res_hyper <- NULL
+for (i in 1:length(trait4)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait4[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- FD.outlier (comm1, traits_j, "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  hyper <- FD.outlier (comm1, traits_j, "hyper")
+  res_hyper <- c(res_hyper, hyper)
+  
+}
+
+outOU_4trait <- data.frame (process = rep("OU", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(4, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+
+data <- outOU_4trait
+
+# Grouped
+png ("out_4T_OU.png", width = 900, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("OU process: 4 traits") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+########################### OU process :: 8 traits  #######################
+# a list of 10 replicates of 8 traits
+trait8 <- Sp_Traits_OU[[4]] 
+
+# 10 random communities
+comm1 <- random_communities[[4]]
+
+
+res_nj <- NULL
+res_upgma <- NULL
+res_hyper <- NULL
+for (i in 1:length(trait8)){
+  
+  # cycle through the 10 replicates
+  run1 <- trait8[[i]]
+  
+  # drop fossil species
+  run1 <- drop.fossil.dads(run1)
+  
+  # Note that the number of species is higher than 100, because it also includes the fossil species used to generate the current community.
+  # To get the 100 extant species, run this:
+  traits_j <- run1$data[rownames(run1$data) %in% run1$tree$tip.label, , drop = FALSE]
+  
+  nj <- FD.outlier (comm1, traits_j, "nj")
+  res_nj <- c(res_nj, nj)
+  
+  upgma <- FD.outlier (comm1, traits_j, "upgma")
+  res_upgma <- c(res_upgma, upgma)
+  
+  hyper = FD.outlier (comm1, traits_j, "hyper")
+  res_hyper <- c(res_hyper, hyper)
+  
+}
+
+outOU_8trait <- data.frame (process = rep("OU", 300), method = c(rep("nj", 100), rep("upgma", 100), rep("hyper", 100)), n_traits = rep(8, 300), n_species = rep(seq(10,100, 10), 30), change = c(res_nj, res_upgma, res_hyper))
+
+data <- outOU_8trait
+
+# Grouped
+png ("out_8T_OU.png", width = 900, height = 600)
+
+data_new <- data                              # Replicate data
+data_new$method <- factor(data_new$method,      # Reordering group factor levels
+                          levels = c("nj", "upgma", "hyper"))
+
+data_new %>%
+  mutate(n_species = factor(n_species)) %>%
+  ggplot(aes(fill=method, y=change, x=n_species)) + 
+  geom_boxplot(position="dodge", alpha=0.5, outlier.colour="transparent", show.legend = FALSE) +
+  facet_wrap(~method, scale="free") +
+  scale_fill_viridis(discrete=T, name="") +
+  theme_ipsum()  +
+  ggtitle("OU process: 8 traits") +
+  xlab("Number of species") +
+  ylab("% Change") +
+  theme(
+    axis.text.x = element_text(size = 15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 18),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    strip.text = element_text(size = 18),
+    strip.background = element_blank()) +
+  ylim(0,100)
+
+dev.off()
+
+
 #########################################################
 ####Kiwi NJ Analyses###################################
 #############################################################
